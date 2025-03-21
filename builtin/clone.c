@@ -1523,7 +1523,8 @@ int cmd_clone(int argc,
 	}
 
 	remote_head = find_ref_by_name(refs, "HEAD");
-	remote_head_points_at = guess_remote_head(remote_head, mapped_refs, 0);
+	remote_head_points_at = guess_remote_head(remote_head, mapped_refs,
+						  REMOTE_GUESS_HEAD_QUIET);
 
 	if (option_branch) {
 		our_head_points_at = find_remote_branch(mapped_refs, option_branch);
