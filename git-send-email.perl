@@ -1454,9 +1454,38 @@ sub smtp_auth_maybe {
 			$error = $@ || 'Unknown error';
 		};
 
-		# NOTE: SMTP status code handling will be added in a subsequent commit,
-		# return 1 when failed due to non-credential reasons
-		return $error ? 1 : ($result ? 1 : 0);
+		if ($error) {
+			# check if an error was captured
+			# parse SMTP status code from error message in:
+			# https://www.rfc-editor.org/rfc/rfc5321.html
+			if ($error =~ /\b(\d{3})\b/) {
+				my $status_code = $1;
+				if ($status_code =~ /^4/) {
+					# 4yz: Transient Negative Completion reply
+					warn "SMTP temporary error (status code $status_code): $error";
+					return 1;
+				} elsif ($status_code =~ /^5/) {
+					# 5yz: Permanent Negative Completion reply
+					warn "SMTP permanent error (status code $status_code): $error";
+					return 0;
+				} else {
+					# if no recognized status code is found, treat as transient error
+					warn "SMTP unknown error: $error. Treating as permanent failure.";
+					return 1;
+				}
+			} else {
+				# if no status code is found, treat as transient error
+				warn "SMTP generic error: $error";
+				return 1;
+			}
+		} elsif (!defined $result) {
+			# if no error and no result is returned, treat as transient error
+			warn "SMTP no result error: $error";
+		    return 1; 
+		}
+		else {
+			return $result ? 1 : 0;
+		}
 	});
 
 	return $auth;
